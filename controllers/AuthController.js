@@ -26,6 +26,7 @@ exports.signUp = async (req, res, next) => {
 
         const accessToken = generateAccessToken(user._id);
         const refreshToken = generateRefreshToken();
+
         user.refreshTokenHash = await bcrypt.hash(refreshToken, 10);
         user.refreshTokenExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30j
 
@@ -49,24 +50,33 @@ exports.signUp = async (req, res, next) => {
 
         if (err.code === 11000) {
             return res.status(400).json({
-                success: false,
-                message: "Email already exists"
+                error: {
+                    code: "EMAIL_ALREADY_EXISTS",
+                    message: "Email already exists"
+                }
             });
         }
 
         if (err.name === "ValidationError") {
-            const errors = Object.values(err.errors).map(e => e.message);
+            const validations = Object.values(err.errors).map(e => ({
+                message: e.message,
+                field: e.path // correspond au champ Mongoose (email, name, etc.)
+            }));
 
             return res.status(400).json({
-                success: false,
-                message: "Validation error",
-                errors: errors
+                error: {
+                    code: "VALIDATION_ERROR",
+                    message: "Validation error",
+                    validations
+                }
             });
         }
 
         return res.status(500).json({
-            success: false,
-            message: "Internal server error"
+            error: {
+                code: "INTERNAL_SERVER_ERROR",
+                message: "Internal server error"
+            }
         });
     }
 };
@@ -78,16 +88,20 @@ exports.signIn = async (req, res, next) => {
         const user = await User.findOne({ email: email });
         if (!user) {
             return res.status(401).json({
-                success: false,
-                message: "Invalid credentials"
+                error: {
+                    code: "INVALID_CREDENTIALS",
+                    message: "Invalid credentials"
+                }
             });
         }
 
         const match = await bcrypt.compare(password, user.password);
         if (!match) {
             return res.status(401).json({
-                success: false,
-                message: "Invalid credentials"
+                error: {
+                    code: "INVALID_CREDENTIALS",
+                    message: "Invalid credentials"
+                }
             });
         }
 
@@ -106,29 +120,31 @@ exports.signIn = async (req, res, next) => {
             maxAge: 30 * 24 * 60 * 60 * 1000,
         });
 
-        return res.status(201).json({
+        return res.status(200).json({
             success: true,
             message: "Login successfully",
             accessToken: accessToken
         });
-    } catch (err) {
 
+    } catch (err) {
         return res.status(500).json({
-            success: false,
-            message: "Internal server error"
+            error: {
+                code: "INTERNAL_SERVER_ERROR",
+                message: "Internal server error"
+            }
         });
     }
 };
 
 exports.refresh = async (req, res) => {
-    console.log(req.cookies);
-
     try {
         const refreshToken = req.cookies?.refreshToken;
         if (!refreshToken) {
             return res.status(401).json({
-                success: false,
-                message: "Missing refresh token"
+                error: {
+                    code: "MISSING_REFRESH_TOKEN",
+                    message: "Missing refresh token"
+                }
             });
         }
 
@@ -139,8 +155,10 @@ exports.refresh = async (req, res) => {
 
         if (!candidates.length) {
             return res.status(401).json({
-                success: false,
-                message: "Invalid refresh token",
+                error: {
+                    code: "INVALID_REFRESH_TOKEN",
+                    message: "Invalid refresh token"
+                }
             });
         }
 
@@ -156,8 +174,10 @@ exports.refresh = async (req, res) => {
 
         if (!user) {
             return res.status(401).json({
-                success: false,
-                message: "Invalid refresh token",
+                error: {
+                    code: "INVALID_REFRESH_TOKEN",
+                    message: "Invalid refresh token"
+                }
             });
         }
 
@@ -167,6 +187,7 @@ exports.refresh = async (req, res) => {
 
         user.refreshTokenHash = await bcrypt.hash(newRefreshToken, 10);
         user.refreshTokenExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
         await user.save();
 
         res.cookie("refreshToken", newRefreshToken, {
@@ -179,10 +200,16 @@ exports.refresh = async (req, res) => {
 
         return res.status(200).json({
             success: true,
-            accessToken: newAccessToken,
+            message: "Refresh token successfully",
+            accessToken: newAccessToken
         });
+
     } catch (err) {
-        console.error(err);
-        return res.status(500).json({ success: false, message: "Internal server error" });
+        return res.status(500).json({
+            error: {
+                code: "INTERNAL_SERVER_ERROR",
+                message: "Internal server error"
+            }
+        });
     }
 };
