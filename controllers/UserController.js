@@ -8,7 +8,10 @@ exports.users = async (req, res, next) => {
         const page = parseInt(req.query.page) || 1;
         const size = parseInt(req.query.size) || 10;
 
-        const key = `users:${page}:${size}`;
+        const sortField = req.query.sort || 'createdAt';
+        const sortOrder = req.query.order === 'asc' ? 1 : -1;
+
+        const key = `users:${page}:${size}:${sortField}:${sortOrder}`;
 
         const data = await redisClient.get(key);
         if (data) return res.status(200).json(JSON.parse(data));
@@ -17,6 +20,7 @@ exports.users = async (req, res, next) => {
 
         const [users, count] = await Promise.all([
             User.find()
+                .sort({ [sortField]: sortOrder })
                 .skip(offset)
                 .limit(size)
                 .lean(), // plus performant si pas besoin des méthodes mongoose pour nos objets
