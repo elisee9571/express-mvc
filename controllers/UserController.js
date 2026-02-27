@@ -5,20 +5,38 @@ const REDIS_DEFAULT_EXPIRATION = 3600; // 1 heure
 
 exports.users = async (req, res, next) => {
     try {
-        const key = "users";
-        const data = await redisClient.get(key);
+        const page = parseInt(req.query.page) || 1;
+        const size = parseInt(req.query.size) || 10;
 
+        const key = `users:${page}:${size}`;
+
+        const data = await redisClient.get(key);
         if (data) return res.status(200).json(JSON.parse(data));
 
-        const users = await User.find();
+        const offset = (page - 1) * size;
 
-        await redisClient.set(key, JSON.stringify(users), {
+        const [users, count] = await Promise.all([
+            User.find()
+                .skip(offset)
+                .limit(size)
+                .lean(), // plus performant si pas besoin des méthodes mongoose pour nos objets
+            User.countDocuments()
+        ]);
+
+        await redisClient.set(key, JSON.stringify({
+            data: users,
+            meta: { page, size, count }
+        }), {
             EX: REDIS_DEFAULT_EXPIRATION
         });
 
-        return res.status(200).json(users);
+        return res.status(200).json({
+            data: users,
+            meta: { page, size, count }
+        });
 
     } catch (err) {
+
         return res.status(500).json({
             error: {
                 code: "INTERNAL_SERVER_ERROR",
@@ -33,8 +51,8 @@ exports.user = async (req, res, next) => {
 
     try {
         const key = `user:${id}`;
-        const data = await redisClient.get(key);
 
+        const data = await redisClient.get(key);
         if (data) return res.status(200).json(JSON.parse(data));
 
         const user = await User.findById(id);
