@@ -1,26 +1,26 @@
-require('dotenv').config();
-const createError = require('http-errors');
 const express = require('express');
 const path = require('path');
 const cookieParser = require('cookie-parser');
-const logger = require('morgan');
+const morganLogger = require('morgan');
 const cors = require('cors');
 const mongoose = require("mongoose");
+const { randomUUID } = require("crypto");
 
-mongoose.connect(process.env.DATABASE_URL)
-  .catch(err => console.error(err));
+const logger = require('./utils/logger');
+const AppError = require("./utils/AppError");
 
 const indexRouter = require('./routes/index');
 const authRouter = require('./routes/auth');
 const userRouter = require('./routes/user');
 
+require('dotenv').config();
+
 const app = express();
 
-// view engine setup
-app.set('views', path.join(__dirname, 'views'));
-app.set('view engine', 'ejs');
+mongoose.connect(process.env.DATABASE_URL)
+  .catch(err => console.error(err));
 
-app.use(logger('dev'));
+app.use(morganLogger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
@@ -30,24 +30,84 @@ app.use(cors({
 }));
 app.use(express.static(path.join(__dirname, 'public')));
 
+app.use((req, res, next) => {
+  req.id = randomUUID();
+  res.setHeader("X-Request-Id", req.id); // pratique pour debug côté client
+  next();
+});
+
+app.use((req, res, next) => {
+  const start = process.hrtime.bigint();
+
+  res.on("finish", () => {
+    const durationMs = Number(process.hrtime.bigint() - start) / 1e6;
+
+    logger.info({
+      timestamp: new Date().toISOString(),
+      request: {
+        id: req.id,
+        method: req.method,
+        path: req.originalUrl,
+        ip: req.ip,
+        userAgent: req.get("user-agent"),
+      },
+      response: {
+        statusCode: res.statusCode,
+        contentLength: res.getHeader("content-length"),
+        durationMs: Math.round(durationMs * 100) / 100
+      }
+    });
+  });
+
+  next();
+});
+
+// Routes
 app.use('/', indexRouter);
 app.use('/auth', authRouter);
 app.use('/users', userRouter);
 
-// catch 404 and forward to error handler
-app.use(function (req, res, next) {
-  next(createError(404));
+// 404
+app.use((req, res, next) => {
+  next(new AppError(404, "ROUTE_NOT_FOUND", `Route ${req.method} ${req.path} not found`));
 });
 
-// error handler
+// Error handler
 app.use((err, req, res, next) => {
-  // set locals, only providing error in dev
-  res.locals.message = err.message;
-  res.locals.error = process.env.NODE_ENV === 'development' ? err : {};
+  const statusCode = err.statusCode || err.status || 500;
+  const now = new Date().toISOString();
 
-  // render the error page
-  res.status(err.status || 500);
-  res.render('error');
+  logger.error({
+    timestamp: now,
+    request: {
+      id: req.id,
+      method: req.method,
+      path: req.originalUrl,
+      ip: req.ip,
+      userAgent: req.get("user-agent"),
+    },
+    user: req.user ? { id: req.userId } : null,
+    error: {
+      name: err.name,
+      code: err.code || "INTERNAL_SERVER_ERROR",
+      statusCode,
+      message: err.message,
+      stack: process.env.NODE_ENV !== "production" ? err.stack : undefined
+    }
+  });
+
+  const message =
+    process.env.NODE_ENV === "production" && statusCode === 500
+      ? "An unexpected error occurred"
+      : err.message;
+
+  res.status(statusCode).json({
+    error: {
+      code: err.code || "INTERNAL_SERVER_ERROR",
+      message: message,
+      ...err.meta
+    }
+  });
 });
 
 module.exports = app;
