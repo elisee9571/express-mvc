@@ -19,7 +19,7 @@ const app = express();
 mongoose.connect(process.env.DATABASE_URL)
     .catch((err) => {
         console.error("Database connection failed:", err);
-        process.exit(1); // stop l'application
+        process.exit(1);
     });
 
 app.use(morganLogger("dev"));
@@ -32,12 +32,18 @@ app.use(cors({
 }));
 app.use(express.static(path.join(__dirname, "public")));
 
+/**
+ * Attribution d'un identifiant unique à chaque requête
+ */
 app.use((req, res, next) => {
     req.id = randomUUID();
-    res.setHeader("X-Request-Id", req.id); // pratique pour debug côté client
+    res.setHeader("X-Request-Id", req.id);
     next();
 });
 
+/**
+ * Logging des requêtes HTTP
+ */
 app.use((req, res, next) => {
     const start = process.hrtime.bigint();
 
@@ -64,16 +70,22 @@ app.use((req, res, next) => {
     next();
 });
 
-// Routes
+/**
+ * Routes principales de l'application
+ */
 app.use("/auth", authRouter);
 app.use("/users", userRouter);
 
-// 404
+/**
+ * Gestion des routes non trouvées
+ */
 app.use((req, res, next) => {
     next(new AppError(404, "ROUTE_NOT_FOUND", `Route ${req.method} ${req.path} not found`));
 });
 
-// Error handler
+/**
+ * Gestion des erreurs
+ */
 app.use((err, req, res, _next) => {
     const statusCode = err.statusCode || err.status || 500;
     const now = new Date().toISOString();
