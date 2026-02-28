@@ -22,7 +22,10 @@ mongoose.connect(process.env.DATABASE_URL)
         process.exit(1);
     });
 
-app.use(morganLogger("dev"));
+if (process.env.NODE_ENV === "development") {
+    app.use(morganLogger("dev"));
+}
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
