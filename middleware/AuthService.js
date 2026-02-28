@@ -1,7 +1,7 @@
 const AppError = require("../utils/AppError");
 
 const jwt = require("jsonwebtoken");
-require('dotenv').config();
+require("dotenv").config();
 
 exports.verifyToken = (req, res, next) => {
     const authHeader = req.headers?.authorization;

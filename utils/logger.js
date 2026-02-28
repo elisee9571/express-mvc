@@ -1,5 +1,5 @@
 const pino = require("pino");
-require('dotenv').config();
+require("dotenv").config();
 
 const logger = pino({
     level: process.env.LOG_LEVEL || "info",
@@ -8,15 +8,15 @@ const logger = pino({
             {
                 level: "info",
                 target: "pino/file",
-                options: { destination: "./logs/app.log", mkdir: true }
+                options: { destination: "./logs/app.log", mkdir: true },
             },
             {
                 level: "error",
                 target: "pino/file",
-                options: { destination: "./logs/error.log", mkdir: true }
-            }
-        ]
-    }
+                options: { destination: "./logs/error.log", mkdir: true },
+            },
+        ],
+    },
 });
 
 module.exports = logger;

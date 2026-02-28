@@ -1,11 +1,11 @@
-const User = require('../models/User');
+const User = require("../models/User");
 const AppError = require("../utils/AppError");
 
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 
-require('dotenv').config();
+require("dotenv").config();
 
 /**
  * Génère un JWT (JSON Web Token) d'accès pour un utilisateur.
@@ -17,13 +17,11 @@ require('dotenv').config();
  * @param {int} userId - Identifiant unique de l'utilisateur.
  * @return {string} Token JWT signé valide pendant 15 minutes.
  */
-const generateAccessToken = (userId) => {
-    return jwt.sign(
-        { userId },
-        process.env.JWT_SECRET,
-        { expiresIn: "15m" }
-    );
-};
+const generateAccessToken = (userId) => jwt.sign(
+    { userId },
+    process.env.JWT_SECRET,
+    { expiresIn: "15m" },
+);
 
 /**
  * Génère un refresh token sécurisé.
@@ -34,11 +32,9 @@ const generateAccessToken = (userId) => {
  * @return {string} Refresh token sécurisé au format hexadécimal.
  *
  */
-const generateRefreshToken = () => {
-    return crypto.randomBytes(64).toString("hex");
-};
+const generateRefreshToken = () => crypto.randomBytes(64).toString("hex");
 
-exports.signUp = async (req, res, next) => {
+exports.signUp = async (req, res) => {
     try {
         const user = User(req.body);
         await user.validate();
@@ -65,32 +61,34 @@ exports.signUp = async (req, res, next) => {
         return res.status(201).json({
             success: true,
             message: "User created successfully",
-            accessToken: accessToken
+            accessToken: accessToken,
         });
 
     } catch (err) {
 
-        if (err.code === 11000) throw new AppError(400, "EMAIL_ALREADY_EXISTS", "Email already exists");
+        if (err.code === 11000) { throw new AppError(400, "EMAIL_ALREADY_EXISTS", "Email already exists"); }
 
         if (err.name === "ValidationError") {
             const validations = Object.values(err.errors).map(e => ({
                 message: e.message,
-                field: e.path // correspond au champ Mongoose (email, name, etc.)
+                field: e.path, // correspond au champ Mongoose (email, name, etc.)
             }));
 
             throw new AppError(400, "VALIDATION_ERROR", "Validation error", { validations });
         }
+
+        throw err;
     }
 };
 
-exports.signIn = async (req, res, next) => {
+exports.signIn = async (req, res) => {
     const { email, password } = req.body;
 
     const user = await User.findOne({ email: email });
-    if (!user) throw new AppError(401, "INVALID_CREDENTIALS", "Invalid credentials");
+    if (!user) { throw new AppError(401, "INVALID_CREDENTIALS", "Invalid credentials"); }
 
     const match = await bcrypt.compare(password, user.password);
-    if (!match) throw new AppError(401, "INVALID_CREDENTIALS", "Invalid credentials");
+    if (!match) { throw new AppError(401, "INVALID_CREDENTIALS", "Invalid credentials"); }
 
     const accessToken = generateAccessToken(user._id);
     const refreshToken = generateRefreshToken();
@@ -110,20 +108,20 @@ exports.signIn = async (req, res, next) => {
     return res.status(200).json({
         success: true,
         message: "Login successfully",
-        accessToken: accessToken
+        accessToken: accessToken,
     });
 };
 
 exports.refresh = async (req, res) => {
     const refreshToken = req.cookies?.refreshToken;
-    if (!refreshToken) throw new AppError(401, "MISSING_REFRESH_TOKEN", "Missing refresh token");
+    if (!refreshToken) { throw new AppError(401, "MISSING_REFRESH_TOKEN", "Missing refresh token"); }
 
     const candidates = await User.find({
         refreshTokenHash: { $ne: null }, // not equal
         refreshTokenExpiresAt: { $gt: new Date() }, // greater than
     }).select("_id refreshTokenHash refreshTokenExpiresAt"); // limiter les champs
 
-    if (!candidates.length) throw new AppError(401, "INVALID_REFRESH_TOKEN", "Invalid refresh token");
+    if (!candidates.length) { throw new AppError(401, "INVALID_REFRESH_TOKEN", "Invalid refresh token"); }
 
     // Compare le refresh token reçu avec chaque hash
     let user = null;
@@ -135,7 +133,7 @@ exports.refresh = async (req, res) => {
         }
     }
 
-    if (!user) throw new AppError(401, "INVALID_REFRESH_TOKEN", "Invalid refresh token");
+    if (!user) { throw new AppError(401, "INVALID_REFRESH_TOKEN", "Invalid refresh token"); }
 
     const newAccessToken = generateAccessToken(user._id);
     const newRefreshToken = generateRefreshToken();
@@ -156,6 +154,6 @@ exports.refresh = async (req, res) => {
     return res.status(200).json({
         success: true,
         message: "Refresh token successfully",
-        accessToken: newAccessToken
+        accessToken: newAccessToken,
     });
 };
