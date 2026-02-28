@@ -9,7 +9,6 @@ const { randomUUID } = require("crypto");
 const logger = require('./utils/logger');
 const AppError = require("./utils/AppError");
 
-const indexRouter = require('./routes/index');
 const authRouter = require('./routes/auth');
 const userRouter = require('./routes/user');
 
@@ -63,7 +62,6 @@ app.use((req, res, next) => {
 });
 
 // Routes
-app.use('/', indexRouter);
 app.use('/auth', authRouter);
 app.use('/users', userRouter);
 
