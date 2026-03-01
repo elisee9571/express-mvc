@@ -1,5 +1,5 @@
 const User = require("../models/User");
-const redisClient = require("../config/redis");
+const redisClient = require("../configs/redis");
 const AppError = require("../utils/AppError");
 
 const REDIS_DEFAULT_EXPIRATION = 3600; // 1 heure
