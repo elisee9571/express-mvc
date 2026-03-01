@@ -171,4 +171,4 @@ L'écran affiche un formulaire nécessitant des informations utilent à la créa
 ### 10. ANNEXES
 Documentation postman : [Documentation API][1]
 
-[1]:https://documenter.getpostman.com/view/25748673/2sBXcGFKvk
+[1]: https://documenter.getpostman.com/view/25748673/2sBXcGFKvk
