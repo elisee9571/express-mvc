@@ -30,9 +30,12 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(cors({
-    "origin": "*",
-    "methods": "GET,PUT,PATCH,POST,DELETE",
+    origin: [process.env.BASE_ORIGIN],
+    credentials: true,
+    methods: ["GET", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
 }));
+app.options("*", cors());
 app.use(express.static(path.join(__dirname, "public")));
 
 /**

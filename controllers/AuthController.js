@@ -52,7 +52,7 @@ exports.signUp = async (req, res) => {
 
         res.cookie("refreshToken", refreshToken, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === "production" ? true : false,
+            secure: process.env.NODE_ENV === "production",
             sameSite: "strict",
             path: "/auth/refresh",
             maxAge: 30 * 24 * 60 * 60 * 1000,
@@ -99,7 +99,7 @@ exports.signIn = async (req, res) => {
 
     res.cookie("refreshToken", refreshToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production" ? true : false,
+        secure: process.env.NODE_ENV === "production",
         sameSite: "strict",
         path: "/auth/refresh",
         maxAge: 30 * 24 * 60 * 60 * 1000,
@@ -145,7 +145,7 @@ exports.refresh = async (req, res) => {
 
     res.cookie("refreshToken", newRefreshToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production" ? true : false,
+        secure: process.env.NODE_ENV === "production",
         sameSite: "strict",
         path: "/auth/refresh",
         maxAge: 30 * 24 * 60 * 60 * 1000,
